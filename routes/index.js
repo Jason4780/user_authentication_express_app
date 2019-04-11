@@ -1,11 +1,12 @@
-var express = require('express');
-var router = express.Router();
+const express = require('express');
+const router = express.Router();
 const User = require('../models/user')
 
 // GET /
 router.get('/', function(req, res, next) {
   return res.render('index', { title: 'Home' });
 });
+
 
 // GET /about
 router.get('/about', function(req, res, next) {
@@ -17,12 +18,57 @@ router.get('/contact', function(req, res, next) {
   return res.render('contact', { title: 'Contact' });
 });
 
+//GET login
+router.get('/login', (req, res, next)=>{
+    res.render('login', {title: 'Log in!'})
+})
 
+//POST login
+router.post('/login', (req, res, next)=>{
+  if(req.body.email && req.body.password){
+    
+    User.authenticate(req.body.email, req.body.password, function(error, user){
+      if(error || !user){
+        const err = new Error("Email or password is incorrect.")
+        err.status = 401
+        next(err)
+      }else{
+       
+        req.session.userId = user._id;
+        res.redirect('/profile')
+      }
+    });
+
+  }else{
+    const err= new Error('Email and Password required.')
+    err.status = 401
+    next(err)
+  }
+ 
+})
+//GET profile, password protected
+router.get('/profile', function(req, res, next) {
+  if (! req.session.userId ) {
+    const err = new Error("You are not authorized to view this page.");
+    err.status = 403;
+    return next(err);
+  }
+  User.findById(req.session.userId)
+      .exec(function (error, user) {
+        if (error) {
+          return next(error);
+        } else {
+          return res.render('profile', { title: 'Profile', name: user.name, favorite: user.favoriteBook });
+        }
+      });
+});
+
+//GET register
 router.get('/register', (req, res)=>{
   return res.render('register', {title: 'Sign up!'})
 })
 
-// post register form to our mongoDB
+// POST register form to our mongoDB
 router.post('/register', (req, res, next)=>{
   //check to make sure all fields are filled out
     if(req.body.email &&
@@ -50,7 +96,9 @@ router.post('/register', (req, res, next)=>{
             if(error){
              return next(error)
             }else{
-              res.redirect('profile')
+              //keeps them logged in by using the session and cookie creation here
+              req.session.userId = user._id;
+              res.redirect('/profile')
             }
           })
 
