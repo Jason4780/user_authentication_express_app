@@ -4,19 +4,30 @@ const bodyParser = require('body-parser');
 const app = express();
 const mongoose = require('mongoose')
 const session = require('express-session')
+const mongoStore= require('connect-mongo')(session)
 
-
-
-app.use(session({
-  secret: "hello from express-sessions!",
-  resave: true,
-  saveUninitialized: false
-}));
 
 mongoose.connect("mongodb://localhost:27017/bookworm")
 const db = mongoose.connection;
 
 db.on('error', console.error.bind(console, 'connection error'));
+
+//create session and use mongo as a session store
+app.use(session({
+  secret: "hello from express-sessions!",
+  resave: true,
+  saveUninitialized: false,
+  store: new mongoStore({
+    mongooseConnection: db
+  })
+}));
+
+app.use((req, res, next)=>{
+res.locals.currentUser = req.session.userId
+next()
+
+})
+
 // parse incoming requests
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
